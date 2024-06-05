@@ -6,6 +6,7 @@ from sklearn.tree import DecisionTreeClassifier,plot_tree
 import matplotlib.pyplot as plt
 from sklearn import tree
 from sklearn.preprocessing import LabelEncoder
+from sklearn.utils import class_weight
 
 def importdata():
     file_path = r'C:/Users/Admin/Documents/Programming/New folder/DecisionTrees/DecisionTrees/train.csv'  # Provide the correct path to your CSV file
@@ -27,12 +28,12 @@ def splitdata(mydata):
     X_train, X_test, Y_train, Y_test = train_test_split(X,Y,test_size=0.3,random_state=10)
     return X,Y,X_train,X_test,Y_train,Y_test
 
-def gini_train(X_train, X_test, Y_train):
-    clf_gini= DecisionTreeClassifier(criterion="gini",random_state=100,max_depth=20,min_samples_leaf=10 )
+def gini_train(X_train, X_test, Y_train,class_weight):
+    clf_gini= DecisionTreeClassifier(criterion="gini",random_state=10,max_depth=20,min_samples_leaf=10 ,class_weight=dict(enumerate(class_weights)))
     clf_gini.fit(X_train,Y_train)
     return clf_gini
-def entropy_train(X_train, X_test, Y_train):
-    clf_gini= DecisionTreeClassifier(criterion="entropy",random_state=100,max_depth=20,min_samples_leaf=10)
+def entropy_train(X_train, X_test, Y_train,class_weight):
+    clf_gini= DecisionTreeClassifier(criterion="entropy",random_state=10,max_depth=20,min_samples_leaf=10, class_weight=dict(enumerate(class_weights)))
     clf_gini.fit(X_train,Y_train)
     return clf_gini
 def preprocess_data(data):
@@ -86,9 +87,9 @@ if __name__ == "__main__":
    
     X, Y, X_train, X_test, y_train, y_test = splitdata(preprocessed_data)
     
-   
-    clf_gini = gini_train(X_train, X_test, y_train)
-    clf_entropy = entropy_train(X_train, X_test, y_train)
+    class_weights = class_weight.compute_class_weight('balanced', classes=np.unique(y_train), y=y_train)
+    clf_gini = gini_train(X_train, X_test, y_train,class_weight)
+    clf_entropy = entropy_train(X_train, X_test, y_train,class_weight)
     
     y_pred_gini = prediction(X_test, clf_gini)
     y_pred_entropy = prediction(X_test, clf_entropy)
