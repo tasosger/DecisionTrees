@@ -9,6 +9,8 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.utils import class_weight
 
 def importdata():
+    file_path = r'./train.csv'  # Provide the correct path to your CSV file
+    
     balance_data = pd.read_csv(
             #'https://archive.ics.uci.edu/ml/machine-learning-' +
             #'databases/balance-scale/balance-scale.data',
@@ -26,8 +28,12 @@ def splitdata(mydata):
     X_train, X_test, Y_train, Y_test = train_test_split(X,Y,test_size=0.3,random_state=10)
     return X,Y,X_train,X_test,Y_train,Y_test
 
-def gini_train(X_train, X_test, Y_train):
-    clf_gini= DecisionTreeClassifier(criterion="gini",random_state=100,max_depth=3,min_samples_leaf=5 )
+def gini_train(X_train, X_test, Y_train,class_weight):
+    clf_gini= DecisionTreeClassifier(criterion="gini",random_state=10,max_depth=5,min_samples_leaf=10) #,class_weight=dict(enumerate(class_weights)))
+    clf_gini.fit(X_train,Y_train)
+    return clf_gini
+def entropy_train(X_train, X_test, Y_train,class_weight):
+    clf_gini= DecisionTreeClassifier(criterion="entropy",random_state=10,max_depth=5,min_samples_leaf=10) #,class_weight=dict(enumerate(class_weights)))
     clf_gini.fit(X_train,Y_train)
     return clf_gini
 def preprocess_data(data):
