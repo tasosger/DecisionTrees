@@ -38,3 +38,35 @@ vector<double> getColumn(const vector<vector<double>>& data, int col) {
     }
     return column;
 }
+
+double entropy(const vector<int>& y) {
+    map<int, int> counts;
+    for (int value : y) {
+        counts[value]++;
+    }
+    
+    double entropy = 0.0;
+    for (const auto& [key, count] : counts) {
+        double probability = static_cast<double>(count) / y.size();
+        entropy -= probability * log2(probability);
+    }
+    
+    return entropy;
+}
+
+double informationGain(const vector<int>& y, const vector<vector<int>>& splits) {
+    double total_entropy = entropy(y);
+    double weighted_entropy = 0.0;
+    
+    for (const auto& split : splits) {
+        double split_entropy = entropy(split);
+        weighted_entropy += static_cast<double>(split.size()) / y.size() * split_entropy;
+    }
+    
+    return total_entropy - weighted_entropy;
+}
+
+
+int main() {
+    return 0;
+}
