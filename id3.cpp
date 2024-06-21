@@ -90,6 +90,79 @@ vector<vector<double>> encodeData(const vector<vector<string>>& rawData, vector<
     return encodedData;
 }
 
+Node* id3(const vector<vector<double>>& X, const vector<int>& y, const set<int>& attributes) {
+    if (set<int>(y.begin(), y.end()).size() == 1) {
+        return new Node(-1, 0.0, y[0]);
+    }
+    
+    if (attributes.empty()) {
+        int most_common = *max_element(y.begin(), y.end(), 
+                            [&y](int a, int b) { return count(y.begin(), y.end(), a) < count(y.begin(), y.end(), b); });
+        return new Node(-1, 0.0, most_common);
+    }
+    
+    int best_attribute = -1;
+    double max_gain = -1;
+    
+    for (int attribute : attributes) {
+        cout << attribute;
+        map<double, vector<int>> splits_map;
+        
+        for (size_t i = 0; i < X.size(); ++i) {
+            splits_map[X[i][attribute]].push_back(y[i]);
+        }
+        
+        vector<vector<int>> splits;
+        for (const auto& [key, split] : splits_map) {
+            splits.push_back(split);
+        }
+        
+        double gain = informationGain(y, splits);
+        
+        if (gain > max_gain) {
+            max_gain = gain;
+            best_attribute = attribute;
+        }
+    }
+    
+    if (max_gain == 0) {
+        int most_common = *max_element(y.begin(), y.end(), 
+                            [&y](int a, int b) { return count(y.begin(), y.end(), a) < count(y.begin(), y.end(), b); });
+        return new Node(-1, 0.0, most_common);
+    }
+    
+    Node* node = new Node(best_attribute);
+    set<int> remaining_attributes = attributes;
+    remaining_attributes.erase(best_attribute);
+    
+    map<double, vector<int>> splits_map;
+    map<double, vector<vector<double>>> X_splits_map;
+    
+    for (size_t i = 0; i < X.size(); ++i) {
+        splits_map[X[i][best_attribute]].push_back(y[i]);
+        X_splits_map[X[i][best_attribute]].push_back(X[i]);
+    }
+    
+    for (const auto& [value, split] : splits_map) {
+        node->children[value] = id3(X_splits_map[value], split, remaining_attributes);
+    }
+    
+    return node;
+}
+
+int predict(Node* node, const vector<double>& sample, int default_class) {
+    if (node->result != -1) {
+        return node->result;
+    }
+    
+    auto it = node->children.find(sample[node->attribute]);
+    if (it != node->children.end()) {
+        return predict(it->second, sample, default_class);
+    }
+    
+    return default_class;
+}
+
 
 int main() {
     string filename = "./loan.csv";
@@ -122,6 +195,22 @@ int main() {
     for (size_t i = 0; i < X[0].size(); ++i) {
         attributes.insert(i);
     }
+
+    vector<vector<double>> X_train, X_test;
+    vector<int> y_train, y_test;
+
+    for (size_t i = 0; i < X.size(); ++i) {
+        if (static_cast<double>(rand()) / RAND_MAX > 0.3) {
+            X_train.push_back(X[i]);
+            y_train.push_back(y[i]);
+        } else {
+            X_test.push_back(X[i]);
+            y_test.push_back(y[i]);
+        }
+    }
+    Node* root = id3(X_train, y_train, attributes);
+    int default_class = *max_element(y_train.begin(), y_train.end(), 
+                        [&y_train](int a, int b) { return count(y_train.begin(), y_train.end(), a) < count(y_train.begin(), y_train.end(), b); });
 
     return 0;
 }
