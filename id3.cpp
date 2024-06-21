@@ -3,6 +3,8 @@
 using namespace std;
 
 
+using namespace std;
+
 class Node {
 public:
     int attribute;
@@ -18,6 +20,9 @@ vector<vector<string>> readCSV(const string& filename) {
     ifstream file(filename);
     string line, cell;
     
+    // Skip the header line
+    getline(file, line);
+    
     while (getline(file, line)) {
         stringstream lineStream(line);
         vector<string> row;
@@ -30,13 +35,15 @@ vector<vector<string>> readCSV(const string& filename) {
     return data;
 }
 
-
-vector<double> getColumn(const vector<vector<double>>& data, int col) {
-    vector<double> column;
-    for (const auto& row : data) {
-        column.push_back(row[col]);
+bool isNumeric(const string& str) {
+    try {
+        stod(str);
+    } catch (const invalid_argument&) {
+        return false;
+    } catch (const out_of_range&) {
+        return false;
     }
-    return column;
+    return true;
 }
 
 double entropy(const vector<int>& y) {
@@ -65,30 +72,6 @@ double informationGain(const vector<int>& y, const vector<vector<int>>& splits) 
     
     return total_entropy - weighted_entropy;
 }
-vector<vector<double>> encodeData(const vector<vector<string>>& rawData, vector<int>& y) {
-    unordered_map<string, int> encodings;
-    int next_code = 0;
-    vector<vector<double>> encodedData;
-    
-    for (const auto& row : rawData) {
-        vector<double> encodedRow;
-        for (size_t i = 0; i < row.size() - 1; ++i) {
-            if (encodings.find(row[i]) == encodings.end()) {
-                encodings[row[i]] = next_code++;
-            }
-            encodedRow.push_back(encodings[row[i]]);
-        }
-        encodedData.push_back(encodedRow);
-        
-        // Handle the last column as the target variable
-        if (encodings.find(row.back()) == encodings.end()) {
-            encodings[row.back()] = next_code++;
-        }
-        y.push_back(encodings[row.back()]);
-    }
-    
-    return encodedData;
-}
 
 Node* id3(const vector<vector<double>>& X, const vector<int>& y, const set<int>& attributes) {
     if (set<int>(y.begin(), y.end()).size() == 1) {
@@ -105,7 +88,6 @@ Node* id3(const vector<vector<double>>& X, const vector<int>& y, const set<int>&
     double max_gain = -1;
     
     for (int attribute : attributes) {
-        cout << attribute;
         map<double, vector<int>> splits_map;
         
         for (size_t i = 0; i < X.size(); ++i) {
@@ -163,6 +145,60 @@ int predict(Node* node, const vector<double>& sample, int default_class) {
     return default_class;
 }
 
+pair<double, vector<vector<int>>> calculate_accuracy(Node* tree, const vector<vector<double>>& X_test, const vector<int>& y_test, int default_class) {
+    vector<int> predictions;
+    for (const auto& sample : X_test) {
+        predictions.push_back(predict(tree, sample, default_class));
+    }
+    
+    int correct = 0;
+    for (size_t i = 0; i < y_test.size(); ++i) {
+        if (predictions[i] == y_test[i]) {
+            correct++;
+        }
+    }
+    
+    int num_classes = 2; // Since we only have two classes: 0 and 1
+    vector<vector<int>> confusion_matrix(num_classes, vector<int>(num_classes, 0));
+    
+    for (size_t i = 0; i < y_test.size(); ++i) {
+        confusion_matrix[y_test[i]][predictions[i]]++;
+    }
+    
+    return { static_cast<double>(correct) / y_test.size(), confusion_matrix };
+}
+
+vector<vector<double>> encodeData(const vector<vector<string>>& rawData, vector<int>& y, unordered_map<string, int>& encodings) {
+    int next_code = 0;
+    vector<vector<double>> encodedData;
+    
+    for (const auto& row : rawData) {
+        vector<double> encodedRow;
+        for (size_t i = 0; i < row.size() - 1; ++i) {
+            if (isNumeric(row[i])) {
+                encodedRow.push_back(stod(row[i]));
+            } else {
+                if (encodings.find(row[i]) == encodings.end()) {
+                    encodings[row[i]] = next_code++;
+                }
+                encodedRow.push_back(encodings[row[i]]);
+            }
+        }
+        encodedData.push_back(encodedRow);
+        
+        // Handle the last column as the target variable
+        if (row.back() == "Approved") {
+            y.push_back(1); // Encode Approved as 1
+        } else if (row.back() == "Denied") {
+            y.push_back(0); // Encode Denied as 0
+        } else {
+            cerr << "Unexpected value in the target column: " << row.back() << endl;
+            exit(EXIT_FAILURE);
+        }
+    }
+    
+    return encodedData;
+}
 
 int main() {
     string filename = "./loan.csv";
@@ -174,9 +210,10 @@ int main() {
     }
 
     vector<int> y;
-    vector<vector<double>> X = encodeData(rawData, y);
+    unordered_map<string, int> encodings;
+    vector<vector<double>> X = encodeData(rawData, y, encodings);
 
-   
+    // Output some of the data to verify it's read correctly
     cout << "First 5 rows of X:" << endl;
     for (size_t i = 0; i < min(size_t(5), X.size()); ++i) {
         for (size_t j = 0; j < X[i].size(); ++j) {
@@ -191,14 +228,25 @@ int main() {
     }
     cout << endl;
 
+    // Output the size of the dataset
+    cout << "Total number of samples: " << X.size() << endl;
+
+    // Output encodings for the features
+    cout << "Feature encodings:" << endl;
+    for (const auto& [key, value] : encodings) {
+        cout << key << ": " << value << endl;
+    }
+
     set<int> attributes;
     for (size_t i = 0; i < X[0].size(); ++i) {
         attributes.insert(i);
     }
 
+    // Split the data into training and test sets (70% training, 30% test)
     vector<vector<double>> X_train, X_test;
     vector<int> y_train, y_test;
 
+    srand(static_cast<unsigned int>(time(0)));  // Seed the random number generator
     for (size_t i = 0; i < X.size(); ++i) {
         if (static_cast<double>(rand()) / RAND_MAX > 0.3) {
             X_train.push_back(X[i]);
@@ -208,9 +256,24 @@ int main() {
             y_test.push_back(y[i]);
         }
     }
+
+    cout << "Training set size: " << X_train.size() << endl;
+    cout << "Test set size: " << X_test.size() << endl;
+
     Node* root = id3(X_train, y_train, attributes);
     int default_class = *max_element(y_train.begin(), y_train.end(), 
                         [&y_train](int a, int b) { return count(y_train.begin(), y_train.end(), a) < count(y_train.begin(), y_train.end(), b); });
+
+    auto [accuracy, conf_matrix] = calculate_accuracy(root, X_test, y_test, default_class);
+
+    cout << "Accuracy: " << accuracy << endl;
+    cout << "Confusion Matrix:" << endl;
+    for (const auto& row : conf_matrix) {
+        for (int val : row) {
+            cout << val << " ";
+        }
+        cout << endl;
+    }
 
     return 0;
 }
