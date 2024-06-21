@@ -20,7 +20,7 @@ vector<vector<string>> readCSV(const string& filename) {
     ifstream file(filename);
     string line, cell;
     
-    // Skip the header line
+   
     getline(file, line);
     
     while (getline(file, line)) {
@@ -158,7 +158,7 @@ pair<double, vector<vector<int>>> calculate_accuracy(Node* tree, const vector<ve
         }
     }
     
-    int num_classes = 2; // Since we only have two classes: 0 and 1
+    int num_classes = 2; 
     vector<vector<int>> confusion_matrix(num_classes, vector<int>(num_classes, 0));
     
     for (size_t i = 0; i < y_test.size(); ++i) {
@@ -186,11 +186,11 @@ vector<vector<double>> encodeData(const vector<vector<string>>& rawData, vector<
         }
         encodedData.push_back(encodedRow);
         
-        // Handle the last column as the target variable
+        
         if (row.back() == "Approved") {
-            y.push_back(1); // Encode Approved as 1
+            y.push_back(1);
         } else if (row.back() == "Denied") {
-            y.push_back(0); // Encode Denied as 0
+            y.push_back(0); 
         } else {
             cerr << "Unexpected value in the target column: " << row.back() << endl;
             exit(EXIT_FAILURE);
@@ -213,40 +213,17 @@ int main() {
     unordered_map<string, int> encodings;
     vector<vector<double>> X = encodeData(rawData, y, encodings);
 
-    // Output some of the data to verify it's read correctly
-    cout << "First 5 rows of X:" << endl;
-    for (size_t i = 0; i < min(size_t(5), X.size()); ++i) {
-        for (size_t j = 0; j < X[i].size(); ++j) {
-            cout << X[i][j] << " ";
-        }
-        cout << endl;
-    }
-
-    cout << "First 5 elements of y:" << endl;
-    for (size_t i = 0; i < min(size_t(5), y.size()); ++i) {
-        cout << y[i] << " ";
-    }
-    cout << endl;
-
-    // Output the size of the dataset
-    cout << "Total number of samples: " << X.size() << endl;
-
-    // Output encodings for the features
-    cout << "Feature encodings:" << endl;
-    for (const auto& [key, value] : encodings) {
-        cout << key << ": " << value << endl;
-    }
+   
 
     set<int> attributes;
     for (size_t i = 0; i < X[0].size(); ++i) {
         attributes.insert(i);
     }
 
-    // Split the data into training and test sets (70% training, 30% test)
     vector<vector<double>> X_train, X_test;
     vector<int> y_train, y_test;
 
-    srand(static_cast<unsigned int>(time(0)));  // Seed the random number generator
+    srand(static_cast<unsigned int>(time(0)));  
     for (size_t i = 0; i < X.size(); ++i) {
         if (static_cast<double>(rand()) / RAND_MAX > 0.3) {
             X_train.push_back(X[i]);
@@ -257,8 +234,6 @@ int main() {
         }
     }
 
-    cout << "Training set size: " << X_train.size() << endl;
-    cout << "Test set size: " << X_test.size() << endl;
 
     Node* root = id3(X_train, y_train, attributes);
     int default_class = *max_element(y_train.begin(), y_train.end(), 
